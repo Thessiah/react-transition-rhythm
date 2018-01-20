@@ -7716,6 +7716,8 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.Test = undefined;
 
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
 var _react = __webpack_require__(2);
 
 var React = _interopRequireWildcard(_react);
@@ -7747,7 +7749,9 @@ var Test = exports.Test = function (_React$Component) {
     return _ret = (_temp = (_this = _possibleConstructorReturn(this, (_ref = Test.__proto__ || Object.getPrototypeOf(Test)).call.apply(_ref, [this].concat(args))), _this), _this.onTransitionEnd = _this.secondTransition, _this.state = {
       x: 100,
       y: 100,
-      backgroundColor: 'blue'
+      backgroundColor: 'blue',
+      opacity: 1,
+      transition: 'transform 1s ease-in-out, opacity 300ms ease-in-out'
     }, _this.firstTransition = function () {
       _this.onTransitionEnd = _this.secondTransition;
       _this.setState({
@@ -7757,15 +7761,39 @@ var Test = exports.Test = function (_React$Component) {
     }, _this.secondTransition = function () {
       _this.onTransitionEnd = _this.thirdTransition;
       _this.setState({
-        x: 300,
-        y: 300
+        x: 500,
+        y: 500
       });
     }, _this.thirdTransition = function () {
+      _this.onTransitionEnd = _this.fourthTransition;
+      _this.setState({
+        x: 100,
+        y: 500
+      });
+    }, _this.fourthTransition = function () {
       _this.onTransitionEnd = _this.firstTransition;
       _this.setState({
         x: 100,
         y: 100
       });
+    }, _this.setOpacity = function () {
+      _this.setState(function (prevState) {
+        return {
+          opacity: prevState.opacity === 1 ? .5 : 1
+        };
+      });
+    }, _this.toggleTransition = function () {
+      _this.setState(function (prevState) {
+        return {
+          transition: prevState.transition === 'transform 1s ease-in-out, opacity 300ms ease-in-out' ? 'transform 500ms ease-in-out' : 'transform 1s ease-in-out, opacity 300ms ease-in-out'
+        };
+      });
+      _this.setOpacity();
+      // window.requestAnimationFrame(() => {
+      //   debugger;
+      // })
+      // this.setOpacity();
+      // this.onTransitionEnd();
     }, _this.render = function () {
       var _this$state = _this.state,
           x = _this$state.x,
@@ -7776,21 +7804,18 @@ var Test = exports.Test = function (_React$Component) {
         'div',
         null,
         React.createElement('button', {
-          onClick: _this.firstTransition
+          onClick: _this.toggleTransition
         }),
         React.createElement(_index.Transition, {
-          onTransitionTrigger: function onTransitionTrigger() {
-            _this.setState({ backgroundColor: 'blue' });
-          },
-          onTransitionStart: function onTransitionStart() {
-            _this.setState({ backgroundColor: 'purple' });
-          },
-          onTransitionEnd: function onTransitionEnd() {
+          onTransitionEnd: [function () {
             _this.onTransitionEnd();
-          },
+          }, function () {
+            _this.setOpacity();
+          }],
           style: {
-            transition: 'transform 1s ease-out 200ms',
+            transition: _this.state.transition,
             transform: 'translate3d(' + x + 'px, ' + y + 'px, 0)',
+            opacity: _this.state.opacity,
             backgroundColor: backgroundColor,
             width: 100,
             height: 100
@@ -7799,6 +7824,14 @@ var Test = exports.Test = function (_React$Component) {
       );
     }, _temp), _possibleConstructorReturn(_this, _ret);
   }
+
+  _createClass(Test, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      window.requestAnimationFrame(this.firstTransition);
+      window.requestAnimationFrame(this.setOpacity);
+    }
+  }]);
 
   return Test;
 }(React.Component);
@@ -7845,6 +7878,8 @@ var _react = __webpack_require__(2);
 
 var React = _interopRequireWildcard(_react);
 
+var _updater = __webpack_require__(31);
+
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
 function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
@@ -7869,7 +7904,7 @@ var Transition = exports.Transition = function (_React$Component) {
       args[_key] = arguments[_key];
     }
 
-    return _ret = (_temp = (_this = _possibleConstructorReturn(this, (_ref = Transition.__proto__ || Object.getPrototypeOf(Transition)).call.apply(_ref, [this].concat(args))), _this), _this.timer = null, _this.triggerTime = null, _this.started = false, _this.property = null, _this.duration = null, _this.timingFunction = null, _this.delay = null, _this.componentWillReceiveProps = function (nextProps) {
+    return _ret = (_temp = (_this = _possibleConstructorReturn(this, (_ref = Transition.__proto__ || Object.getPrototypeOf(Transition)).call.apply(_ref, [this].concat(args))), _this), _this.transitions = [], _this.transitionMap = {}, _this.componentWillReceiveProps = function (nextProps) {
       var style = _this.props.style;
       var nextStyle = nextProps.style,
           onTransitionTrigger = nextProps.onTransitionTrigger;
@@ -7878,58 +7913,77 @@ var Transition = exports.Transition = function (_React$Component) {
         if (style.transition !== nextStyle.transition) {
           _this.processProps(nextProps);
         }
-        if (_this.property && style[_this.property] !== nextStyle[_this.property]) {
-          if (_this.timer) {
-            !_this.started && _this.start();
-            _this.end();
+        _this.transitions.forEach(function (transition, index) {
+          if (transition.property && style[transition.property] !== nextStyle[transition.property]) {
+            (0, _updater.triggerTransition)(transition);
           }
-          _this.timer = window.requestAnimationFrame(_this.update);
-          _this.triggerTime = window.performance.now();
-          _this.started = false;
-          onTransitionTrigger && onTransitionTrigger();
-          !_this.delay && _this.start();
-        }
+        });
       }
     }, _this.processProps = function (_ref2) {
-      var style = _ref2.style;
+      var style = _ref2.style,
+          onTransitionTrigger = _ref2.onTransitionTrigger,
+          onTransitionStart = _ref2.onTransitionStart,
+          onTransitionEnd = _ref2.onTransitionEnd;
 
       if (style && style.transition) {
-        var _style$transition$spl = style.transition.split(' '),
-            _style$transition$spl2 = _slicedToArray(_style$transition$spl, 4),
-            property = _style$transition$spl2[0],
-            duration = _style$transition$spl2[1],
-            timingFunction = _style$transition$spl2[2],
-            delay = _style$transition$spl2[3];
+        var transitionStrings = style.transition.split(',');
+        var transitions = new Array(transitionStrings.length);
+        var transitionMap = {};
+        transitionStrings.forEach(function (transitionString, index) {
+          transitionMap[transitionString] = index;
+          if (_this.transitionMap[transitionString] !== undefined) {
+            transitions[index] = _this.transitions[_this.transitionMap[transitionString]];
+          } else {
+            var _transitionString$rep = transitionString.replace(/^\s+|\s+$/g, '').split(' '),
+                _transitionString$rep2 = _slicedToArray(_transitionString$rep, 3),
+                property = _transitionString$rep2[0],
+                duration = _transitionString$rep2[1],
+                delay = _transitionString$rep2[2];
 
-        _this.property = property;
-        _this.duration = _this.processTime(duration);
-        _this.timingFunction = timingFunction;
-        _this.delay = _this.processTime(delay);
+            transitions[index] = {
+              property: property,
+              duration: _this.processTime(duration),
+              delay: _this.processTime(delay),
+
+              triggerTime: 0,
+              triggered: false,
+              started: false,
+              ended: false,
+              reaped: false,
+              trigger: _this.processCallback(onTransitionTrigger, index),
+              start: _this.processCallback(onTransitionStart, index),
+              end: _this.processCallback(onTransitionEnd, index)
+            };
+          }
+        });
+        Object.entries(_this.transitionMap).forEach(function (_ref3) {
+          var _ref4 = _slicedToArray(_ref3, 2),
+              transitionString = _ref4[0],
+              index = _ref4[1];
+
+          if (transitionMap[transitionString] === undefined) {
+            var transition = _this.transitions[index];
+            if (transition.triggered) {
+              if (!transition.started) {
+                transition.start && transition.start();
+                transition.started = true;
+              }
+              if (!transition.ended) {
+                transition.end && transition.end();
+                transition.ended = true;
+              }
+              transition.reaped = true;
+            }
+          }
+        });
+        _this.transitions = transitions;
+        _this.transitionMap = transitionMap;
       }
+    }, _this.processCallback = function (callback, index) {
+      return callback ? Array.isArray(callback) ? callback[index] : callback : null;
     }, _this.processTime = function (time) {
       return (/\d+ms/.test(time) ? parseInt(time.replace(/\D/g, ''), 10) : /\d+s/.test(time) ? parseInt(time.replace(/\D/g, ''), 10) * 1000 : 0
       );
-    }, _this.start = function () {
-      var onTransitionStart = _this.props.onTransitionStart;
-
-      _this.started = true;
-      onTransitionStart && onTransitionStart();
-    }, _this.end = function () {
-      var onTransitionEnd = _this.props.onTransitionEnd;
-
-      window.cancelAnimationFrame(_this.timer);
-      _this.timer = null;
-      _this.triggerTime = null;
-      onTransitionEnd && onTransitionEnd();
-    }, _this.update = function (time) {
-      if (!_this.started && _this.delay <= time - _this.triggerTime) {
-        _this.start();
-      }
-      if (_this.duration <= time - _this.triggerTime) {
-        _this.end();
-        return;
-      }
-      _this.timer = window.requestAnimationFrame(_this.update);
     }, _this.render = function () {
       var _this$props = _this.props,
           onTransitionTrigger = _this$props.onTransitionTrigger,
@@ -7965,6 +8019,71 @@ var Transition = exports.Transition = function (_React$Component) {
 //     }
 //   })
 // })}
+
+/***/ }),
+/* 30 */,
+/* 31 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var transitions = [];
+var timer = null;
+
+var triggerTransition = exports.triggerTransition = function triggerTransition(transition) {
+  if (!transition.ended || transition.reaped) {
+    transitions.push(transition);
+    if (transitions.length === 1) {
+      timer = window.requestAnimationFrame(update);
+    }
+  }
+  transition.triggerTime = window.performance.now();
+  transition.started = false;
+  transition.ended = false;
+  transition.reaped = false;
+  transition.triggered = true;
+  transition.trigger && transition.trigger();
+  if (!transition.delay) {
+    transition.started = true;
+    transition.start && transition.start();
+  }
+};
+
+var update = function update(time) {
+  var reapedCount = 0;
+  transitions.forEach(function (transition, index) {
+    if (!transition.started && transition.delay <= time - transition.triggerTime) {
+      transition.started = true;
+      transition.start && transition.start();
+    }
+    if (transition.duration <= time - transition.triggerTime) {
+      if (!transition.ended) {
+        transition.ended = true;
+        transition.end && transition.end();
+      } else {
+        transition.reaped = true;
+      }
+    }
+    transition.reaped && reapedCount++;
+  });
+  if (reapedCount > 0) {
+    var newTransitions = new Array(transitions.length - reapedCount);
+    var i = 0;
+    transitions.forEach(function (transition) {
+      if (!transition.reaped) {
+        newTransitions[i++] = transition;
+      }
+    });
+    transitions = newTransitions;
+  }
+  if (transitions.length > 0) {
+    timer = window.requestAnimationFrame(update);
+  }
+};
 
 /***/ })
 /******/ ]);

@@ -589,6 +589,8 @@ var _react = __webpack_require__(8);
 
 var React = _interopRequireWildcard(_react);
 
+var _updater = __webpack_require__(14);
+
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
 
 function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
@@ -613,7 +615,7 @@ var Transition = exports.Transition = function (_React$Component) {
       args[_key] = arguments[_key];
     }
 
-    return _ret = (_temp = (_this = _possibleConstructorReturn(this, (_ref = Transition.__proto__ || Object.getPrototypeOf(Transition)).call.apply(_ref, [this].concat(args))), _this), _this.timer = null, _this.triggerTime = null, _this.started = false, _this.property = null, _this.duration = null, _this.timingFunction = null, _this.delay = null, _this.componentWillReceiveProps = function (nextProps) {
+    return _ret = (_temp = (_this = _possibleConstructorReturn(this, (_ref = Transition.__proto__ || Object.getPrototypeOf(Transition)).call.apply(_ref, [this].concat(args))), _this), _this.transitions = [], _this.transitionMap = {}, _this.componentWillReceiveProps = function (nextProps) {
       var style = _this.props.style;
       var nextStyle = nextProps.style,
           onTransitionTrigger = nextProps.onTransitionTrigger;
@@ -622,58 +624,77 @@ var Transition = exports.Transition = function (_React$Component) {
         if (style.transition !== nextStyle.transition) {
           _this.processProps(nextProps);
         }
-        if (_this.property && style[_this.property] !== nextStyle[_this.property]) {
-          if (_this.timer) {
-            !_this.started && _this.start();
-            _this.end();
+        _this.transitions.forEach(function (transition, index) {
+          if (transition.property && style[transition.property] !== nextStyle[transition.property]) {
+            (0, _updater.triggerTransition)(transition);
           }
-          _this.timer = window.requestAnimationFrame(_this.update);
-          _this.triggerTime = window.performance.now();
-          _this.started = false;
-          onTransitionTrigger && onTransitionTrigger();
-          !_this.delay && _this.start();
-        }
+        });
       }
     }, _this.processProps = function (_ref2) {
-      var style = _ref2.style;
+      var style = _ref2.style,
+          onTransitionTrigger = _ref2.onTransitionTrigger,
+          onTransitionStart = _ref2.onTransitionStart,
+          onTransitionEnd = _ref2.onTransitionEnd;
 
       if (style && style.transition) {
-        var _style$transition$spl = style.transition.split(' '),
-            _style$transition$spl2 = _slicedToArray(_style$transition$spl, 4),
-            property = _style$transition$spl2[0],
-            duration = _style$transition$spl2[1],
-            timingFunction = _style$transition$spl2[2],
-            delay = _style$transition$spl2[3];
+        var transitionStrings = style.transition.split(',');
+        var transitions = new Array(transitionStrings.length);
+        var transitionMap = {};
+        transitionStrings.forEach(function (transitionString, index) {
+          transitionMap[transitionString] = index;
+          if (_this.transitionMap[transitionString] !== undefined) {
+            transitions[index] = _this.transitions[_this.transitionMap[transitionString]];
+          } else {
+            var _transitionString$rep = transitionString.replace(/^\s+|\s+$/g, '').split(' '),
+                _transitionString$rep2 = _slicedToArray(_transitionString$rep, 3),
+                property = _transitionString$rep2[0],
+                duration = _transitionString$rep2[1],
+                delay = _transitionString$rep2[2];
 
-        _this.property = property;
-        _this.duration = _this.processTime(duration);
-        _this.timingFunction = timingFunction;
-        _this.delay = _this.processTime(delay);
+            transitions[index] = {
+              property: property,
+              duration: _this.processTime(duration),
+              delay: _this.processTime(delay),
+
+              triggerTime: 0,
+              triggered: false,
+              started: false,
+              ended: false,
+              reaped: false,
+              trigger: _this.processCallback(onTransitionTrigger, index),
+              start: _this.processCallback(onTransitionStart, index),
+              end: _this.processCallback(onTransitionEnd, index)
+            };
+          }
+        });
+        Object.entries(_this.transitionMap).forEach(function (_ref3) {
+          var _ref4 = _slicedToArray(_ref3, 2),
+              transitionString = _ref4[0],
+              index = _ref4[1];
+
+          if (transitionMap[transitionString] === undefined) {
+            var transition = _this.transitions[index];
+            if (transition.triggered) {
+              if (!transition.started) {
+                transition.start && transition.start();
+                transition.started = true;
+              }
+              if (!transition.ended) {
+                transition.end && transition.end();
+                transition.ended = true;
+              }
+              transition.reaped = true;
+            }
+          }
+        });
+        _this.transitions = transitions;
+        _this.transitionMap = transitionMap;
       }
+    }, _this.processCallback = function (callback, index) {
+      return callback ? Array.isArray(callback) ? callback[index] : callback : null;
     }, _this.processTime = function (time) {
       return (/\d+ms/.test(time) ? parseInt(time.replace(/\D/g, ''), 10) : /\d+s/.test(time) ? parseInt(time.replace(/\D/g, ''), 10) * 1000 : 0
       );
-    }, _this.start = function () {
-      var onTransitionStart = _this.props.onTransitionStart;
-
-      _this.started = true;
-      onTransitionStart && onTransitionStart();
-    }, _this.end = function () {
-      var onTransitionEnd = _this.props.onTransitionEnd;
-
-      window.cancelAnimationFrame(_this.timer);
-      _this.timer = null;
-      _this.triggerTime = null;
-      onTransitionEnd && onTransitionEnd();
-    }, _this.update = function (time) {
-      if (!_this.started && _this.delay <= time - _this.triggerTime) {
-        _this.start();
-      }
-      if (_this.duration <= time - _this.triggerTime) {
-        _this.end();
-        return;
-      }
-      _this.timer = window.requestAnimationFrame(_this.update);
     }, _this.render = function () {
       var _this$props = _this.props,
           onTransitionTrigger = _this$props.onTransitionTrigger,
@@ -2298,6 +2319,71 @@ module.exports = checkPropTypes;
 var ReactPropTypesSecret = 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED';
 
 module.exports = ReactPropTypesSecret;
+
+/***/ }),
+/* 13 */,
+/* 14 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+var transitions = [];
+var timer = null;
+
+var triggerTransition = exports.triggerTransition = function triggerTransition(transition) {
+  if (!transition.ended || transition.reaped) {
+    transitions.push(transition);
+    if (transitions.length === 1) {
+      timer = window.requestAnimationFrame(update);
+    }
+  }
+  transition.triggerTime = window.performance.now();
+  transition.started = false;
+  transition.ended = false;
+  transition.reaped = false;
+  transition.triggered = true;
+  transition.trigger && transition.trigger();
+  if (!transition.delay) {
+    transition.started = true;
+    transition.start && transition.start();
+  }
+};
+
+var update = function update(time) {
+  var reapedCount = 0;
+  transitions.forEach(function (transition, index) {
+    if (!transition.started && transition.delay <= time - transition.triggerTime) {
+      transition.started = true;
+      transition.start && transition.start();
+    }
+    if (transition.duration <= time - transition.triggerTime) {
+      if (!transition.ended) {
+        transition.ended = true;
+        transition.end && transition.end();
+      } else {
+        transition.reaped = true;
+      }
+    }
+    transition.reaped && reapedCount++;
+  });
+  if (reapedCount > 0) {
+    var newTransitions = new Array(transitions.length - reapedCount);
+    var i = 0;
+    transitions.forEach(function (transition) {
+      if (!transition.reaped) {
+        newTransitions[i++] = transition;
+      }
+    });
+    transitions = newTransitions;
+  }
+  if (transitions.length > 0) {
+    timer = window.requestAnimationFrame(update);
+  }
+};
 
 /***/ })
 /******/ ]);
