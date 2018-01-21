@@ -1,0 +1,7 @@
+demo/
+node_modules/
+src/
+.gitignore
+.npmignore
+webpack.dev.babel.js
+webpack.prod.babel.js
