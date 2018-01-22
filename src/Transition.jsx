@@ -5,8 +5,15 @@ export class Transition extends React.Component {
   transitions = [];
   transitionMap = {};
 
-  componentWillMount() {
+  componentWillMount = () => {
     this.processProps(this.props);
+  }
+  componentDidMount = () => {
+    if(this.props.onMount) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(this.props.onMount)
+      })
+    }
   }
   componentWillReceiveProps = (nextProps) => {
     const {
@@ -30,7 +37,7 @@ export class Transition extends React.Component {
       })
     }
   }
-  processProps = ({style, onTransitionTrigger, onTransitionStart, onTransitionEnd}) => {
+  processProps = ({style, endDelay, onTransitionTrigger, onTransitionStart, onTransitionEnd}) => {
     if(style && style.transition) {
       const transitionStrings = style.transition.split(',');
       const transitions = new Array(transitionStrings.length);
@@ -44,21 +51,23 @@ export class Transition extends React.Component {
           const [
             property,
             duration,
+            timingFunction,
             delay
           ] = transitionString.replace(/^\s+|\s+$/g, '').split(' ') 
           transitions[index] = {
             property,
             duration: this.processTime(duration),
             delay: this.processTime(delay),
+            endDelay: this.processTime(this.processArrayItem(endDelay, index)),
 
             triggerTime: 0,
             triggered: false,
             started: false,
             ended: false,
             reaped: false,
-            trigger: this.processCallback(onTransitionTrigger, index),
-            start: this.processCallback(onTransitionStart, index),
-            end: this.processCallback(onTransitionEnd, index)
+            trigger: this.processArrayItem(onTransitionTrigger, index),
+            start: this.processArrayItem(onTransitionStart, index),
+            end: this.processArrayItem(onTransitionEnd, index)
           }
         }
       })
@@ -82,22 +91,28 @@ export class Transition extends React.Component {
       this.transitionMap = transitionMap;
     }
   }
-  processCallback = (callback, index) => {
-    return callback
-      ? Array.isArray(callback)
-        ? callback[index]
-        : callback
+  processArrayItem = (item, index) => {
+    return item
+      ? Array.isArray(item)
+        ? item[index] !== undefined
+          ? item[index]
+          : null
+        : item
       : null;
   } 
   processTime = (time) => {
-    return /\d+ms/.test(time) 
-      ? parseInt(time.replace(/\D/g,''), 10)
-      : /\d+s/.test(time)
-        ? (parseInt(time.replace(/\D/g,''), 10) * 1000)
-        : 0
+    return Number.isInteger(time) 
+      ? time
+      : /\d+ms/.test(time) 
+        ? parseInt(time.replace(/\D/g,''), 10)
+        : /\d+s/.test(time)
+          ? (parseInt(time.replace(/\D/g,''), 10) * 1000)
+          : 0
   }
   render = () => {
     const {
+      endDelay,
+      onMount,
       onTransitionTrigger,
       onTransitionStart,
       onTransitionEnd,

@@ -18,22 +18,28 @@ export const triggerTransition = (transition) => {
     transition.started = true;
     transition.start && transition.start();
   }
+  if(!transition.delay && !transition.duration) {
+    transition.ended = true;
+    transition.end && transition.end();
+  }
 }
 
 const update = (time) => {
   let reapedCount = 0;
   transitions.forEach((transition, index) => {
-    if(!transition.started && transition.delay <= time - transition.triggerTime) {
-      transition.started = true;
-      transition.start && transition.start();
-    }
-    if(transition.duration <= time - transition.triggerTime) {
-      if(!transition.ended) {
-        transition.ended = true;
-        transition.end && transition.end();
+    if(!transition.reaped) {
+      if(!transition.started && transition.delay <= time - transition.triggerTime) {
+        transition.started = true;
+        transition.start && transition.start();
       }
-      else {
-        transition.reaped = true;
+      if(transition.duration + transition.delay + transition.endDelay <= time - transition.triggerTime) {
+        if(!transition.ended) {
+          transition.ended = true;
+          transition.end && transition.end();
+        }
+        else {
+          transition.reaped = true;
+        }
       }
     }
     transition.reaped && reapedCount++;
