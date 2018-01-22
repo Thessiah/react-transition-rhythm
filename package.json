@@ -1,6 +1,6 @@
 {
   "name": "react-transition-rhythm",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "a component to provide callbacks to css transitions in react",
   "main": "./dist/index.js",
   "scripts": {
